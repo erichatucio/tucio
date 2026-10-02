@@ -104,7 +104,7 @@ Configure the required values in Render **Environment**:
 | `DB_DRIVER`, `DB_CHARSET` | `mysql`, `utf8mb4` |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Aiven's connection details |
 | `DB_SSL_CA_CERT` | Full Aiven CA certificate PEM contents |
-| `JWT_SECRET`, `REFRESH_TOKEN_KEY` | Two independent random values, each at least 32 characters |
+| `JWT_SECRET`, `REFRESH_TOKEN_KEY` | Two independent random values, each at least 32 characters. The Render Blueprint generates both automatically; if deploying an existing service without syncing the Blueprint, generate and set them separately in the service's Environment settings. |
 | `FRONTEND_ORIGIN` | Exact HTTPS origin of the React Static Site, with no trailing slash |
 
 Deploy the React client from its separate repository as a Render **Static Site** (its `render.yaml` is included). The Blueprint uses `npm ci && npm run build` and publishes `dist`. Set `VITE_API_BASE_URL` to the deployed LavaLust API origin, e.g. `https://your-api.onrender.com`. Add that site's final origin to the API service's `FRONTEND_ORIGIN`, then redeploy the API.

@@ -32,8 +32,8 @@ services:
       - key: DB_SSL_CA_CERT
         sync: false
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: REFRESH_TOKEN_KEY
-        sync: false
+        generateValue: true
       - key: FRONTEND_ORIGIN
         sync: false
