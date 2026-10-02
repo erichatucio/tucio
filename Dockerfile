@@ -2,14 +2,11 @@ FROM php:8.3-apache
 
 RUN docker-php-ext-install pdo_mysql \
     && a2enmod rewrite \
-    && sed -ri 's!/var/www/html!/var/www/html/public!g' \
-        /etc/apache2/sites-available/000-default.conf \
-        /etc/apache2/apache2.conf \
-    && sed -ri '/<Directory \\/var\\/www\\/>/,/<\\/Directory>/ s/AllowOverride None/AllowOverride All/' \
-        /etc/apache2/apache2.conf \
     && sed -ri 's/^Listen 80$/Listen 10000/' /etc/apache2/ports.conf \
-    && sed -ri 's/<VirtualHost \\*:80>/<VirtualHost *:10000>/' \
-        /etc/apache2/sites-available/000-default.conf
+    && a2dissite 000-default
+
+COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
+RUN a2ensite 000-default
 
 COPY --chown=www-data:www-data . /var/www/html/
 
