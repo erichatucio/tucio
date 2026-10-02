@@ -2,17 +2,17 @@
 
 :root {
   font-family: 'DM Sans', sans-serif;
-  color: #302443;
-  background: #f3effb;
+  color: #17364b;
+  background: #edf7fc;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --purple: #8062bd;
-  --purple-dark: #6c4fa8;
-  --purple-light: #f5f1fb;
-  --ink: #302443;
-  --muted: #80768e;
-  --line: #eae4f2;
+  --ocean: #087ca8;
+  --ocean-dark: #075f83;
+  --ocean-light: #eaf6fb;
+  --ink: #17364b;
+  --muted: #658094;
+  --line: #dcebf3;
   --paper: #fff;
   --mono: 'DM Mono', monospace;
 }

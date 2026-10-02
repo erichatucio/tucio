@@ -9,9 +9,9 @@
   place-items: center;
   padding: 32px 18px;
   background:
-    radial-gradient(ellipse at 12% 8%, #e4d9ff 0, transparent 38%),
-    radial-gradient(ellipse at 88% 92%, #e7ddff 0, transparent 35%),
-    linear-gradient(135deg, #f7f4ff, #ece7fa);
+    radial-gradient(ellipse at 12% 8%, #c7edfa 0, transparent 38%),
+    radial-gradient(ellipse at 88% 92%, #d5e9ff 0, transparent 35%),
+    linear-gradient(135deg, #f2fbff, #e7f2fb);
 }
 
 .auth-card {
@@ -20,14 +20,14 @@
   border: 1px solid #ffffff;
   border-radius: 24px;
   background: #fff;
-  box-shadow: 0 24px 70px #4e397a1a;
+  box-shadow: 0 24px 70px #174e6b1a;
 }
 
 .eyebrow,
 .section-label,
 .product-number {
   margin: 0;
-  color: #8468bd;
+  color: #087ca8;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .15em;
@@ -37,7 +37,7 @@
 .auth-card h1,
 .dashboard-header h1 {
   margin: 10px 0 8px;
-  color: #302443;
+  color: #17364b;
   font-family: Manrope, 'DM Sans', sans-serif;
   font-size: clamp(28px, 5vw, 36px);
   font-weight: 800;
@@ -47,7 +47,7 @@
 .auth-subtitle,
 .welcome {
   margin: 0;
-  color: #80768e;
+  color: #658094;
   font-size: 14px;
 }
 
@@ -66,7 +66,7 @@
 .product-form label,
 .edit-form label {
   margin: 15px 0 7px;
-  color: #4a3d5d;
+  color: #33566e;
   font-size: 13px;
   font-weight: 700;
 }
@@ -79,11 +79,11 @@
   width: 100%;
   min-width: 0;
   padding: 12px 14px;
-  border: 1px solid #e2dceb;
+  border: 1px solid #cbdde8;
   border-radius: 11px;
   outline: none;
-  color: #302443;
-  background: #fcfbfe;
+  color: #17364b;
+  background: #f8fcff;
   font: inherit;
   font-size: 14px;
   transition: border-color .18s, box-shadow .18s, background .18s;
@@ -94,10 +94,10 @@
 .product-form textarea:focus,
 .edit-form input:focus,
 .edit-form textarea:focus {
-  border-color: #9678cf;
+  border-color: #1494bd;
   outline: 0;
   background: #fff;
-  box-shadow: 0 0 0 3px #9678cf24;
+  box-shadow: 0 0 0 3px #1494bd24;
 }
 
 .product-form textarea,
@@ -124,13 +124,13 @@
 
 .primary-button {
   color: #fff;
-  background: #8062bd;
-  box-shadow: 0 6px 15px #8062bd28;
+  background: #087ca8;
+  box-shadow: 0 6px 15px #087ca828;
 }
 
 .primary-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: #6c4fa8;
+  background: #075f83;
 }
 
 .primary-button:disabled,
@@ -149,7 +149,7 @@
 
 .auth-switch {
   margin: 24px 0 0;
-  color: #80768e;
+  color: #658094;
   font-size: 13px;
   text-align: center;
 }
@@ -157,7 +157,7 @@
 .auth-switch button {
   padding: 0;
   border: 0;
-  color: #7052ad;
+  color: #08739b;
   background: transparent;
   font: inherit;
   font-weight: 800;
@@ -167,10 +167,10 @@
 .status-message {
   margin: 18px 0;
   padding: 12px 15px;
-  border: 1px solid #dfd4f1;
+  border: 1px solid #b9e1f0;
   border-radius: 11px;
-  color: #5f478d;
-  background: #f7f3ff;
+  color: #075f83;
+  background: #eff9fd;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -187,7 +187,7 @@
   border: 1px solid #fff;
   border-radius: 26px;
   background: #fff;
-  box-shadow: 0 24px 70px #4e397a1a;
+  box-shadow: 0 24px 70px #174e6b1a;
 }
 
 .dashboard-header {
@@ -204,14 +204,14 @@
 }
 
 .logout-button {
-  border-color: #e2dceb;
-  color: #6e5d86;
+  border-color: #cbdde8;
+  color: #526f82;
   background: #fff;
 }
 
 .logout-button:hover:not(:disabled) {
-  border-color: #cfc1e6;
-  background: #f8f5fd;
+  border-color: #a9d0e1;
+  background: #f1f9fd;
 }
 
 .product-tabs {
@@ -220,14 +220,14 @@
   gap: 10px;
   padding: 7px;
   border-radius: 13px;
-  background: #f5f1fb;
+  background: #eaf6fb;
 }
 
 .product-tabs button {
   min-height: 43px;
   border: 0;
   border-radius: 9px;
-  color: #776a89;
+  color: #58758b;
   background: transparent;
   font: inherit;
   font-size: 13px;
@@ -237,8 +237,8 @@
 
 .product-tabs button.active {
   color: #fff;
-  background: #8062bd;
-  box-shadow: 0 4px 12px #8062bd2b;
+  background: #087ca8;
+  box-shadow: 0 4px 12px #087ca82b;
 }
 
 .content-section {
@@ -255,7 +255,7 @@
 
 .section-heading h2 {
   margin: 6px 0 0;
-  color: #352748;
+  color: #17364b;
   font-family: Manrope, 'DM Sans', sans-serif;
   font-size: 22px;
   letter-spacing: -.03em;
@@ -274,15 +274,15 @@
 .product-card {
   min-width: 0;
   padding: 20px;
-  border: 1px solid #eae4f2;
+  border: 1px solid #dcebf3;
   border-radius: 16px;
-  background: linear-gradient(155deg, #fff, #fdfbff);
+  background: linear-gradient(155deg, #fff, #f7fbfe);
 }
 
 .product-card h3,
 .edit-form h3 {
   margin: 7px 0 0;
-  color: #382b4c;
+  color: #1d4057;
   font-family: Manrope, 'DM Sans', sans-serif;
   font-size: 18px;
   overflow-wrap: anywhere;
@@ -295,7 +295,7 @@
 .product-description {
   min-height: 40px;
   margin: 12px 0 18px;
-  color: #776d84;
+  color: #607b8e;
   font-size: 13px;
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -308,13 +308,13 @@
   gap: 12px;
   padding: 11px 12px;
   border-radius: 10px;
-  color: #6b607b;
-  background: #f5f1fb;
+  color: #526f82;
+  background: #eaf6fb;
   font-size: 12px;
 }
 
 .product-details strong {
-  color: #7052ad;
+  color: #08739b;
   font-size: 15px;
 }
 
@@ -331,14 +331,14 @@
 }
 
 .secondary-button {
-  border-color: #dcd1ec;
-  color: #7156a6;
-  background: #f9f6fd;
+  border-color: #bfdae7;
+  color: #146e91;
+  background: #f5fafc;
 }
 
 .secondary-button:hover:not(:disabled) {
-  border-color: #c7b6e1;
-  background: #f1ebfa;
+  border-color: #9cc9db;
+  background: #eaf6fb;
 }
 
 .delete-button {
@@ -353,10 +353,10 @@
 
 .empty-state {
   padding: 30px 18px;
-  border: 1px dashed #d8cde8;
+  border: 1px dashed #b9d8e6;
   border-radius: 14px;
-  color: #776d84;
-  background: #fbf9fe;
+  color: #607b8e;
+  background: #f7fbfd;
   text-align: center;
   font-size: 13px;
 }
@@ -365,9 +365,9 @@
   max-width: 700px;
   margin: 0 auto;
   padding: 23px;
-  border: 1px solid #ebe5f3;
+  border: 1px solid #dcebf3;
   border-radius: 16px;
-  background: #fdfcff;
+  background: #fbfdff;
 }
 
 .form-row {
@@ -398,16 +398,16 @@
   align-items: center;
   justify-content: center;
   gap: 11px;
-  color: #6e5d86;
-  background: linear-gradient(135deg, #f7f4ff, #ece7fa);
+  color: #526f82;
+  background: linear-gradient(135deg, #f2fbff, #e7f2fb);
   font-size: 14px;
 }
 
 .loader {
   width: 18px;
   height: 18px;
-  border: 2px solid #ddd4ef;
-  border-top-color: #8062bd;
+  border: 2px solid #c5e2ed;
+  border-top-color: #087ca8;
   border-radius: 50%;
   animation: spin .7s linear infinite;
 }
@@ -419,7 +419,7 @@
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid #9678cf55;
+  outline: 3px solid #1494bd55;
   outline-offset: 2px;
 }
 
