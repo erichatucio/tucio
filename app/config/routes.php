@@ -57,3 +57,21 @@ $router->get('/products/edit/{id}', 'ProductController::edit')->where_number('id
 $router->post('/products/edit/{id}', 'ProductController::update')->where_number('id');
 $router->get('/products/delete/{id}', 'ProductController::confirm_delete')->where_number('id');
 $router->post('/products/delete/{id}', 'ProductController::delete')->where_number('id');
+
+$router->post('/api/auth/login', 'ApiController::login');
+$router->post('/api/auth/refresh', 'ApiController::refresh');
+$router->post('/api/auth/logout', 'ApiController::logout');
+$router->get('/api/auth/me', 'ApiController::me');
+$router->get('/api/products', 'ApiController::products');
+$router->get('/api/products/{id}', 'ApiController::show_product')->where_number('id');
+$router->post('/api/products', 'ApiController::create_product');
+$router->put('/api/products/{id}', 'ApiController::update_product')->where_number('id');
+$router->patch('/api/products/{id}', 'ApiController::update_product')->where_number('id');
+$router->delete('/api/products/{id}', 'ApiController::delete_product')->where_number('id');
+
+$router->get('/create-migration/{migration_class}', 'MigrationController::create_migration');
+$router->get('/migrate', 'MigrationController::migrate');
+$router->get('/rollback', 'MigrationController::rollback');
+$router->get('/rollback-all', 'MigrationController::rollback_all');
+$router->get('/refresh', 'MigrationController::refresh');
+$router->get('/status', 'MigrationController::status');

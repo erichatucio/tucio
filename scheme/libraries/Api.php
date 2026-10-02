@@ -385,6 +385,8 @@ class Api
     public function respond($data, $code = 200)
     {
         http_response_code($code);
+        header('Content-Type: application/json; charset=UTF-8');
+        header('Cache-Control: no-store');
         echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         exit;
     }

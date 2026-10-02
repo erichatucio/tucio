@@ -31,3 +31,9 @@ services:
         value: utf8mb4
       - key: DB_SSL_CA_CERT
         sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: REFRESH_TOKEN_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false

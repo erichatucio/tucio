@@ -1,73 +1,119 @@
-# LavaLust Product CRUD (Laboratory Exercise No. 5)
+# Stockroom — LavaLust API + React (Laboratory Exercises 5 and 6)
 
-A small LavaLust MVC application with session authentication and full product CRUD. Product data is stored in MySQL; production connections must use TLS. The app is prepared for deployment to Render with its Docker runtime.
+Stockroom is a React product-management client backed by a LavaLust JSON API and Aiven MySQL. Product operations use parameterized database queries in the API only; the browser never connects to MySQL. The API uses LavaLust's `Api` library for JSON responses, JWT access/refresh tokens, rate limiting, and bearer-token validation.
 
-## Requirements
+## Stack
 
-- PHP 8.3 with `pdo_mysql`, `session`, and Apache `mod_rewrite` (or Docker)
-- A MySQL database, such as Aiven MySQL
-- An Aiven CA certificate for a verified TLS connection
+- LavaLust 4.6 / PHP 8.3 with PDO MySQL
+- React 19 and Vite
+- Aiven MySQL over verified TLS
+- Render Docker Web Service for the API and Render Static Site for the React client
 
-## 1. Create the Aiven database
+## Database migrations
 
-Create a MySQL service and database in Aiven. Copy the host, port, database name, username, password, and CA certificate from the Aiven service connection information. Run [database/products.sql](./database/products.sql) against that database to create the required `products` table.
+Migration files are in `app/migrations/`:
 
-The table has the requested columns: auto-increment `id`, `product_name`, `description`, `price`, `quantity`, and `created_at`.
-
-## 2. Configure the application
-
-LavaLust loads the root `.env` file for local development. Copy `.env.example` to `.env` and fill in local values. Render should use its Environment settings instead. Never commit `.env` or actual secrets.
-
-Required variables:
-
-| Variable | Purpose |
+| Version | Tables |
 | --- | --- |
-| `APP_ENV` | Use `development` locally and `production` on Render. |
-| `APP_URL` | Full application URL ending with `/`, e.g. `https://your-service.onrender.com/`. |
-| `APP_KEY` | Random secret used for sessions and CSRF; generate with `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`. |
-| `ADMIN_USERNAME` | Login username for the application administrator. |
-| `ADMIN_PASSWORD_HASH` | PHP `password_hash()` output for the administrator password; never store the plaintext password here. |
-| `DB_DRIVER` | `mysql`. |
-| `DB_HOST`, `DB_PORT` | Aiven host and port. |
-| `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Aiven database name, username, and password. |
-| `DB_CHARSET` | `utf8mb4`. |
-| `DB_SSL_CA_CERT` | Full PEM contents of Aiven's CA certificate (recommended on Render). For local `.env`, set `DB_SSL_CA` to the readable CA file path because the `.env` parser does not support multiline values. |
+| `000_initial_setup` | `migrations` |
+| `001_create_users_table` | `users` |
+| `002_create_refresh_tokens_table` | `refresh_tokens` |
+| `003_create_products_table` | `products` |
 
-Generate an administrator password hash without putting the password in the command history:
+The product migration is idempotent and leaves an existing `products` table and its rows untouched. The API provisions the configured administrator as a row in `users` on the first successful API login. Refresh-token values are stored hashed.
+
+This LavaLust version discovers commands from `app/commands/` (plural). The CLI generator was used to create the migration command; it is named `MigrationCommand` to avoid colliding with LavaLust's own `Migration` library. Use:
 
 ```powershell
-php -r '$password = readline("Admin password: "); echo password_hash($password, PASSWORD_DEFAULT), PHP_EOL;'
+php lava make:controller MigrationController
+php lava make:command Migration
+php lava migration run
+php lava migration status
+php lava migration create-migration create_products_table
+php lava migration rollback
+php lava migration rollback-all
+php lava migration refresh
 ```
 
-Set the returned hash as `ADMIN_PASSWORD_HASH` in the local environment or Render. In PowerShell, environment variables can be set for the current shell with `$env:NAME = "value"` before starting the PHP server. Alternatively, configure them in the Apache virtual host.
+`rollback`, `rollback-all`, and `refresh` refuse to run when `APP_ENV=production`. Use them only against a disposable development database. The migration HTTP routes required by the exercise are registered in `app/config/routes.php`, but the controller returns 404 for web requests: all migration execution is restricted to CLI. Render runs `php lava migration run` as the container starts, applying only pending migrations. This creates `migrations`, `users`, and `refresh_tokens` on the configured Aiven database and skips the already-present `products` table.
 
-## 3. Run locally
+## API
 
-Configure the variables above in Apache or your shell, set the web server document root to `public/`, and enable URL rewriting. Open the configured `APP_URL`; the root route redirects to the sign-in page. Product CRUD routes require an authenticated session. All form submissions use CSRF protection, and deletion requires a confirmation page followed by a POST.
+All routes are under `/api`. Except login and refresh, requests require `Authorization: Bearer <access_token>`.
 
-## 4. Deploy to Render
+| Method | Route | Authentication | Result |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/login` | Public, rate-limited | Verify `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH`, provision admin row, return access and refresh tokens |
+| `POST` | `/api/auth/refresh` | Refresh token in JSON body | Rotate refresh token and issue a new access token |
+| `POST` | `/api/auth/logout` | Access token and matching refresh token | Revoke refresh token |
+| `GET` | `/api/auth/me` | Bearer token | Return current account |
+| `GET` | `/api/products` | `read` scope | List products, newest first |
+| `GET` | `/api/products/{id}` | `read` scope | Read one product |
+| `POST` | `/api/products` | `write` scope | Create product; responds `201` |
+| `PUT` | `/api/products/{id}` | `write` scope | Replace product fields |
+| `PATCH` | `/api/products/{id}` | `write` scope | Update product fields |
+| `DELETE` | `/api/products/{id}` | `delete` scope | Delete product |
 
-1. Push this repository to your GitHub repository.
-2. In Render, create a **Blueprint** from the repository; it will read [render.yaml](./render.yaml). Alternatively create a **Web Service** using the Docker runtime. The Dockerfile serves the application from `public/` on port `10000`, Render's default web-service port.
-3. Enter the `sync: false` values in Render using the table above and Aiven's connection details. Set `APP_URL` to the final HTTPS Render URL ending with `/`, and `DB_SSL_CA_CERT` to the PEM contents of Aiven's CA certificate. The Blueprint generates an `APP_KEY` for the service.
-4. Set `ADMIN_PASSWORD_HASH` to the output of `password_hash()` and keep the plaintext password private. Check `APP_ENV=production`, `DB_DRIVER=mysql`, and `DB_CHARSET=utf8mb4`.
-5. Deploy. Visit `/login`, authenticate, and test creating, listing, editing, and deleting a product. Confirm the row appears in the Aiven `products` table.
+Product values are validated server-side. CORS is restricted to `FRONTEND_ORIGIN`; set it to the exact HTTPS origin of the deployed React site. JSON API paths are excluded from cookie CSRF checks because state-changing requests use bearer tokens and never rely on cookies.
 
-The production MySQL connector refuses to open a connection unless a CA file/path is configured. It verifies the MySQL server certificate and uses TLS.
+## Local development
 
-## Routes
+1. Copy `.env.example` to `.env`; set the administrator credentials, MySQL connection values, and `DB_SSL_CA` to the Aiven CA file path. Do not commit `.env`.
+2. Generate separate JWT and refresh-token secrets without printing them:
 
-| Route | Method | Description |
-| --- | --- | --- |
-| `/login` | GET, POST | Administrator sign-in |
-| `/logout` | POST | Sign out |
-| `/products` | GET | List products |
-| `/products/create` | GET, POST | Add a product |
-| `/products/edit/{id}` | GET, POST | Edit a product |
-| `/products/delete/{id}` | GET, POST | Confirm and delete a product |
+   ```powershell
+   php lava jwt:generate
+   ```
 
-Product routes check the authenticated session before accessing the database. Mutation routes require POST and a valid CSRF token.
+3. Run the migrations against the intended database:
 
-## Verification and submission
+   ```powershell
+   php lava migration run
+   ```
 
-Check the live Render URL while signed out (product routes must redirect to login), then sign in and exercise each CRUD operation. Capture screenshots of login, product list, add, edit, delete confirmation/result, and the Aiven table. Submit your GitHub repository URL, Render URL, and the requested screenshots with the assignment.
+4. Start the API in one terminal:
+
+   ```powershell
+   php lava serve
+   ```
+
+5. In another terminal, configure the client API origin and start Vite:
+
+   ```powershell
+   Set-Location frontend
+   Copy-Item .env.example .env
+   npm install
+   npm run dev
+   ```
+
+   The client defaults to `http://localhost:3000`; the API CORS default is `http://localhost:5173`.
+
+## Render deployment
+
+The existing LavaLust repository is the API project. Deploy it as a Docker Web Service using the root `Dockerfile` / `render.yaml`. The image listens on Render's port `10000`, applies pending migrations at startup, and serves the API.
+
+Configure the required values in Render **Environment**:
+
+| Variable | Value |
+| --- | --- |
+| `APP_ENV` | `production` |
+| `APP_KEY` | Persistent random application key |
+| `APP_URL` | The API service's HTTPS URL ending in `/` |
+| `ADMIN_USERNAME` | Administrator login |
+| `ADMIN_PASSWORD_HASH` | PHP `password_hash()` output (never plaintext) |
+| `DB_DRIVER`, `DB_CHARSET` | `mysql`, `utf8mb4` |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Aiven's connection details |
+| `DB_SSL_CA_CERT` | Full Aiven CA certificate PEM contents |
+| `JWT_SECRET`, `REFRESH_TOKEN_KEY` | Two independent random values, each at least 32 characters |
+| `FRONTEND_ORIGIN` | Exact HTTPS origin of the React Static Site, with no trailing slash |
+
+Deploy the React client from its separate repository as a Render **Static Site** (its `render.yaml` is included). The Blueprint uses `npm ci && npm run build` and publishes `dist`. Set `VITE_API_BASE_URL` to the deployed LavaLust API origin, e.g. `https://your-api.onrender.com`. Add that site's final origin to the API service's `FRONTEND_ORIGIN`, then redeploy the API.
+
+Never place Aiven credentials, JWT secrets, password hashes, or the CA certificate in either Git repository or any `VITE_*` variable.
+
+## Submission checks
+
+- While signed out, API product routes respond `401`; login returns tokens only for valid credentials.
+- A signed-in React user can list, add, edit, and delete products.
+- The deployed Aiven database contains `migrations`, `users`, `refresh_tokens`, and `products`.
+- Render serves both the API and the separate React client over HTTPS.

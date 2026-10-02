@@ -15,3 +15,5 @@ RUN mkdir -p /var/www/html/runtime/session \
     && chmod -R 755 /var/www/html/runtime
 
 EXPOSE 10000
+
+CMD ["sh", "-c", "php lava migration run && exec apache2-foreground"]
