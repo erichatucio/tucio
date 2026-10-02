@@ -1,3 +1,11 @@
+FROM node:22-alpine AS frontend-build
+
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM php:8.3-apache
 
 RUN docker-php-ext-install pdo_mysql \
@@ -9,6 +17,7 @@ COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 RUN a2ensite 000-default
 
 COPY --chown=www-data:www-data . /var/www/html/
+COPY --from=frontend-build --chown=www-data:www-data /app/frontend/dist/ /var/www/html/public/
 
 RUN mkdir -p /var/www/html/runtime/session \
     && chown -R www-data:www-data /var/www/html/runtime \

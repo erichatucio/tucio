@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
-const API_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, '')
+const API_URL = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/+$/, '')
 const ACCESS_TOKEN_KEY = 'stockroom-access-token'
 const REFRESH_TOKEN_KEY = 'stockroom-refresh-token'
 const USER_KEY = 'stockroom-user'

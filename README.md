@@ -7,7 +7,7 @@ Stockroom is a React product-management client backed by a LavaLust JSON API and
 - LavaLust 4.6 / PHP 8.3 with PDO MySQL
 - React 19 and Vite
 - Aiven MySQL over verified TLS
-- Render Docker Web Service for the API and Render Static Site for the React client
+- Render Docker Web Service for the React client and LavaLust API on one origin
 
 ## Database migrations
 
@@ -91,7 +91,7 @@ Product values are validated server-side. CORS allows `http://localhost:5173`, `
 
 ## Render deployment
 
-Deploy the LavaLust API as a Docker Web Service and the React client as a Render Static Site using the root `render.yaml`. The API image listens on Render's port `10000`, applies pending migrations at startup, and serves the API. The Static Site builds the `frontend` directory and publishes `dist`.
+The Docker image builds the React client in a Node stage, installs its static files in the Apache public document root, and serves the client at `https://tucio.onrender.com/`. API routes remain under `/api` on that same origin. The image listens on Render's port `10000` and applies pending migrations at startup. The root `render.yaml` also retains the standalone Static Site configuration for `https://tucio-product-frontend.onrender.com/`.
 
 Configure the required values in Render **Environment**:
 
@@ -108,7 +108,7 @@ Configure the required values in Render **Environment**:
 | `JWT_SECRET`, `REFRESH_TOKEN_KEY` | Two independent random values, each at least 32 characters. The Render Blueprint generates both automatically; if deploying an existing service without syncing the Blueprint, generate and set them separately in the service's Environment settings. |
 | `FRONTEND_ORIGIN` | `https://tucio-product-frontend.onrender.com` (exact HTTPS origin, no trailing slash) |
 
-The frontend uses `VITE_API_URL=https://tucio.onrender.com`. The root Render Blueprint configures it for the Static Site build and adds the SPA rewrite from `/*` to `/index.html`. The frontend's [README](frontend/README.md) has local setup and verification steps.
+The combined Docker deployment uses the current page origin as the API URL, so the UI and API work together at `https://tucio.onrender.com/`. For local Vite development and the standalone Static Site, set `VITE_API_URL` to the API origin. The frontend's [README](frontend/README.md) has local setup and verification steps.
 
 Never place Aiven credentials, JWT secrets, password hashes, or the CA certificate in either Git repository or any `VITE_*` variable.
 
@@ -117,4 +117,4 @@ Never place Aiven credentials, JWT secrets, password hashes, or the CA certifica
 - While signed out, API product routes respond `401`; login returns tokens only for valid credentials.
 - A signed-in React user can list, add, edit, and delete products.
 - The deployed Aiven database contains `migrations`, `users`, `refresh_tokens`, and `products`.
-- Render serves both the API and the separate React client over HTTPS.
+- `https://tucio.onrender.com/` serves the React client, and its `/api` routes serve the protected LavaLust API.

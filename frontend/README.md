@@ -29,10 +29,10 @@ npm run build
 
 ## Deployment
 
-- Frontend: `https://tucio-frontend.onrender.com`
-- API: `https://tucio.onrender.com`
+- Main app and API: `https://tucio.onrender.com`
+- Standalone frontend mirror: `https://tucio-product-frontend.onrender.com`
 
-The Render Static Site builds this directory with `npm install && npm run build`, publishes `dist`, and rewrites application routes to `/index.html`. Configure `VITE_API_URL` on the Static Site before building. The API's `FRONTEND_ORIGIN` must contain the frontend's exact HTTPS origin; `http://localhost:5173` and `http://127.0.0.1:5173` are also allowed by the API for local testing.
+The API Docker image builds this React app and serves `dist` from the same origin as the API. When `VITE_API_URL` is not set, the app uses its current origin, so the public app calls `https://tucio.onrender.com/api/...` without cross-origin requests. The optional Render Static Site builds this directory with `npm install && npm run build`, publishes `dist`, and rewrites application routes to `/index.html`; configure `VITE_API_URL=https://tucio.onrender.com` on that site. The API's `FRONTEND_ORIGIN` allows the standalone frontend origin; `http://localhost:5173` and `http://127.0.0.1:5173` are also allowed for local testing.
 
 ## Verification checklist
 

@@ -3,6 +3,7 @@
         Options -MultiViews -Indexes
     </IfModule>
 
+    DirectoryIndex index.html index.php
     RewriteEngine On
 
     # Handle Authorization Header
@@ -13,6 +14,12 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
+
+    # Serve the React application for browser routes, while keeping API routes in LavaLust.
+    RewriteCond %{REQUEST_URI} !^/api(/|$)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.html [L]
 
     # Handle Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
