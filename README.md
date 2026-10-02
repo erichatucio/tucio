@@ -106,7 +106,7 @@ Configure the required values in Render **Environment**:
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Aiven's connection details |
 | `DB_SSL_CA_CERT` | Full Aiven CA certificate PEM contents |
 | `JWT_SECRET`, `REFRESH_TOKEN_KEY` | Two independent random values, each at least 32 characters. The Render Blueprint generates both automatically; if deploying an existing service without syncing the Blueprint, generate and set them separately in the service's Environment settings. |
-| `FRONTEND_ORIGIN` | `https://tucio-frontend.onrender.com` (exact HTTPS origin, no trailing slash) |
+| `FRONTEND_ORIGIN` | `https://tucio-product-frontend.onrender.com` (exact HTTPS origin, no trailing slash) |
 
 The frontend uses `VITE_API_URL=https://tucio.onrender.com`. The root Render Blueprint configures it for the Static Site build and adds the SPA rewrite from `/*` to `/index.html`. The frontend's [README](frontend/README.md) has local setup and verification steps.
 

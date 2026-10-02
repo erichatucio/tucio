@@ -36,9 +36,9 @@ services:
       - key: REFRESH_TOKEN_KEY
         generateValue: true
       - key: FRONTEND_ORIGIN
-        value: https://tucio-frontend.onrender.com
+        value: https://tucio-product-frontend.onrender.com
   - type: web
-    name: tucio-frontend
+    name: tucio-product-frontend
     runtime: static
     plan: free
     rootDir: frontend

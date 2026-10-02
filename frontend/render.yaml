@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: stockroom-frontend
+    name: tucio-product-frontend
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
