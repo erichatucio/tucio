@@ -48,9 +48,9 @@ Configure the variables above in Apache or your shell, set the web server docume
 ## 4. Deploy to Render
 
 1. Push this repository to your GitHub repository.
-2. In Render, create a **Web Service** connected to the repository and select **Docker** as the runtime. The Dockerfile serves the application from `public/` on port `10000`, Render's default web-service port.
-3. Add the variables in the table above under the Render service's Environment settings. Use the values from Aiven. Set `APP_ENV=production`, `APP_URL` to the final HTTPS Render URL, and `DB_SSL_CA_CERT` to the PEM contents of Aiven's CA certificate.
-4. Generate a unique `APP_KEY` and set it only in Render's environment settings. Set `ADMIN_PASSWORD_HASH` to the output of `password_hash()` and keep the plaintext password private.
+2. In Render, create a **Blueprint** from the repository; it will read [render.yaml](./render.yaml). Alternatively create a **Web Service** using the Docker runtime. The Dockerfile serves the application from `public/` on port `10000`, Render's default web-service port.
+3. Enter the `sync: false` values in Render using the table above and Aiven's connection details. Set `APP_URL` to the final HTTPS Render URL ending with `/`, and `DB_SSL_CA_CERT` to the PEM contents of Aiven's CA certificate. The Blueprint generates an `APP_KEY` for the service.
+4. Set `ADMIN_PASSWORD_HASH` to the output of `password_hash()` and keep the plaintext password private. Check `APP_ENV=production`, `DB_DRIVER=mysql`, and `DB_CHARSET=utf8mb4`.
 5. Deploy. Visit `/login`, authenticate, and test creating, listing, editing, and deleting a product. Confirm the row appears in the Aiven `products` table.
 
 The production MySQL connector refuses to open a connection unless a CA file/path is configured. It verifies the MySQL server certificate and uses TLS.
