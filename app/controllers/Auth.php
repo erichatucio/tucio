@@ -19,8 +19,8 @@ class Auth extends Controller
 
     public function authenticate()
     {
-        $username = $this->call->request->post('username');
-        $password = $this->call->request->post('password');
+        $username = $this->request->post('username');
+        $password = $this->request->post('password');
         $configured_username = getenv('ADMIN_USERNAME') ?: '';
         $password_hash = getenv('ADMIN_PASSWORD_HASH') ?: '';
 

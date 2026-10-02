@@ -114,7 +114,7 @@ class ProductController extends Controller
     {
         $fields = [];
         foreach (['product_name', 'description', 'price', 'quantity'] as $field) {
-            $value = $this->call->request->post($field, '');
+            $value = $this->request->post($field, '');
             $fields[$field] = is_string($value) ? trim($value) : '';
         }
 
