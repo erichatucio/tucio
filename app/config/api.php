@@ -145,10 +145,12 @@ $config['users_table'] = 'users';
 | a browser, so set your real domain in production.
 |
 */
-$config['allow_origin'] = array_values(array_filter(array_map(
+$frontend_origins = explode(',', getenv('FRONTEND_ORIGIN') ?: '');
+$frontend_origins[] = 'http://localhost:5173';
+$config['allow_origin'] = array_values(array_unique(array_filter(array_map(
     'trim',
-    explode(',', getenv('FRONTEND_ORIGIN') ?: 'http://localhost:5173')
-)));
+    $frontend_origins
+))));
 
 /*
 |--------------------------------------------------------------------------

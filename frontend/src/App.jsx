@@ -1,351 +1,499 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
-const API_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '')
-const TOKEN_KEY = 'stockroom-api-tokens'
+const API_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, '')
+const ACCESS_TOKEN_KEY = 'stockroom-access-token'
+const REFRESH_TOKEN_KEY = 'stockroom-refresh-token'
+const USER_KEY = 'stockroom-user'
+let pendingTokenRefresh = null
 
-async function request(path, { token, ...options } = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  })
-  const payload = response.status === 204 ? null : await response.json().catch(() => null)
-
-  if (!response.ok) {
-    const error = new Error(payload?.error || `Request failed with status ${response.status}.`)
-    error.status = response.status
-    throw error
-  }
-  return payload
+function clearSession() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
 }
 
-function readTokens() {
-  try {
-    return JSON.parse(sessionStorage.getItem(TOKEN_KEY) || 'null')
-  } catch {
-    sessionStorage.removeItem(TOKEN_KEY)
-    return null
+function storeTokens(tokens) {
+  if (!tokens?.access_token || !tokens?.refresh_token) {
+    throw new Error('The API did not return both authentication tokens.')
   }
+  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token)
+  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token)
+}
+
+function responseError(payload, status) {
+  const error = new Error(payload?.error || payload?.message || `Request failed with status ${status}.`)
+  error.status = status
+  return error
+}
+
+async function sendRequest(path, { method = 'GET', body, token } = {}) {
+  if (!API_URL) {
+    throw new Error('The API URL is not configured. Set VITE_API_URL and rebuild the frontend.')
+  }
+
+  const response = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  const payload = response.status === 204 ? null : await response.json().catch(() => null)
+  return { response, payload }
+}
+
+function refreshTokens(refreshToken) {
+  if (!pendingTokenRefresh) {
+    pendingTokenRefresh = (async () => {
+      const result = await sendRequest('/api/auth/refresh', {
+        method: 'POST',
+        body: { refresh_token: refreshToken },
+      })
+      if (!result.response.ok) {
+        throw responseError(result.payload, result.response.status)
+      }
+      storeTokens(result.payload?.tokens)
+      return result.payload.tokens
+    })().finally(() => {
+      pendingTokenRefresh = null
+    })
+  }
+  return pendingTokenRefresh
+}
+
+async function apiRequest(path, options = {}) {
+  let result = await sendRequest(path, {
+    ...options,
+    token: localStorage.getItem(ACCESS_TOKEN_KEY),
+  })
+
+  if (result.response.status === 401) {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+    if (!refreshToken) {
+      clearSession()
+      const error = new Error('Your session has expired. Please log in again.')
+      error.authExpired = true
+      throw error
+    }
+
+    try {
+      const tokens = await refreshTokens(refreshToken)
+      result = await sendRequest(path, { ...options, token: tokens.access_token })
+    } catch {
+      clearSession()
+      const error = new Error('Your session has expired. Please log in again.')
+      error.authExpired = true
+      throw error
+    }
+
+    if (result.response.status === 401) {
+      clearSession()
+      const error = new Error('Your session has expired. Please log in again.')
+      error.authExpired = true
+      throw error
+    }
+  }
+
+  if (!result.response.ok) {
+    throw responseError(result.payload, result.response.status)
+  }
+  return result.payload
 }
 
 function App() {
-  const [tokens, setTokens] = useState(readTokens)
-  const [user, setUser] = useState(null)
+  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const [registerForm, setRegisterForm] = useState({ username: '', email: '', password: '' })
+  const [authView, setAuthView] = useState('login')
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(USER_KEY) || 'null')
+    } catch {
+      localStorage.removeItem(USER_KEY)
+      return null
+    }
+  })
   const [products, setProducts] = useState([])
+  const [activeView, setActiveView] = useState('products')
+  const [productForm, setProductForm] = useState({
+    product_name: '',
+    description: '',
+    price: '',
+    quantity: '',
+  })
+  const [editingProduct, setEditingProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  const [modal, setModal] = useState(null)
-  const [form, setForm] = useState({ product_name: '', description: '', price: '', quantity: '' })
-  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const [productsLoading, setProductsLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('success')
 
-  const saveTokens = useCallback((nextTokens) => {
-    sessionStorage.setItem(TOKEN_KEY, JSON.stringify(nextTokens))
-    setTokens(nextTokens)
-  }, [])
+  function announce(text, type = 'success') {
+    setMessage(text)
+    setMessageType(type)
+  }
 
-  const loadProducts = useCallback(async (accessToken) => {
-    const payload = await request('/api/products', { token: accessToken })
-    setProducts(payload.products)
-  }, [])
+  function expireSession(error) {
+    if (!error.authExpired) return false
+    clearSession()
+    setUser(null)
+    setProducts([])
+    announce(error.message, 'error')
+    return true
+  }
+
+  function showError(error) {
+    if (expireSession(error)) return
+    announce(
+      error instanceof TypeError
+        ? 'Could not connect to the API. Check your connection and try again.'
+        : error.message,
+      'error',
+    )
+  }
+
+  async function loadProducts(successMessage = '') {
+    setProductsLoading(true)
+    try {
+      const payload = await apiRequest('/api/products')
+      if (!Array.isArray(payload?.products)) {
+        throw new Error('The API returned an unexpected product list.')
+      }
+      setProducts(payload.products)
+      if (successMessage) announce(successMessage)
+      return true
+    } catch (error) {
+      showError(error)
+      return false
+    } finally {
+      setProductsLoading(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
-    const restoreSession = async () => {
-      const stored = readTokens()
-      if (!stored?.refresh_token) {
+
+    async function restoreSession() {
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+      if (!refreshToken) {
         if (active) setLoading(false)
         return
       }
 
       try {
-        const payload = await request('/api/auth/refresh', {
-          method: 'POST',
-          body: JSON.stringify({ refresh_token: stored.refresh_token }),
-        })
-        if (!active) return
-        saveTokens(payload.tokens)
-        const profile = await request('/api/auth/me', { token: payload.tokens.access_token })
-        await loadProducts(payload.tokens.access_token)
-        if (active) setUser(profile.user)
-      } catch (err) {
-        sessionStorage.removeItem(TOKEN_KEY)
+        await refreshTokens(refreshToken)
+        const [profile, list] = await Promise.all([
+          apiRequest('/api/auth/me'),
+          apiRequest('/api/products'),
+        ])
+        if (!Array.isArray(list?.products)) {
+          throw new Error('The API returned an unexpected product list.')
+        }
         if (active) {
-          setTokens(null)
+          setUser(profile?.user || null)
+          setProducts(list.products)
+        }
+      } catch (error) {
+        clearSession()
+        if (active) {
           setUser(null)
-          if (![401, 403].includes(err.status)) {
-            setError(err.message)
-          }
+          setProducts([])
+          if (error instanceof TypeError || !error.authExpired) showError(error)
+          else announce('Your session has expired. Please log in again.', 'error')
         }
       } finally {
         if (active) setLoading(false)
       }
     }
+
     restoreSession()
     return () => { active = false }
-  }, [loadProducts, saveTokens])
+  }, [])
 
-  const inventoryValue = useMemo(
-    () => products.reduce((sum, product) => sum + Number(product.price) * Number(product.quantity), 0),
-    [products],
-  )
-  const totalUnits = useMemo(
-    () => products.reduce((sum, product) => sum + Number(product.quantity), 0),
-    [products],
-  )
-
-  async function signIn(event) {
+  async function handleLogin(event) {
     event.preventDefault()
     setBusy(true)
-    setError('')
+    setMessage('')
     try {
-      const payload = await request('/api/auth/login', {
+      const payload = await apiRequest('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify(credentials),
+        body: credentials,
       })
-      const productPayload = await request('/api/products', { token: payload.tokens.access_token })
-      setProducts(productPayload.products)
-      saveTokens(payload.tokens)
+      storeTokens(payload?.tokens)
+      localStorage.setItem(USER_KEY, JSON.stringify(payload.user))
       setUser(payload.user)
       setCredentials({ username: '', password: '' })
-    } catch (err) {
-      setError(err.message)
+      setActiveView('products')
+      await loadProducts('Login successful. Products loaded successfully!')
+    } catch (error) {
+      showError(error)
     } finally {
       setBusy(false)
       setLoading(false)
     }
   }
 
-  async function signOut() {
-    setBusy(true)
-    setError('')
-    try {
-      await request('/api/auth/logout', {
-        method: 'POST',
-        token: tokens?.access_token,
-        body: JSON.stringify({ refresh_token: tokens?.refresh_token }),
-      })
-      setNotice('You have been signed out.')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      sessionStorage.removeItem(TOKEN_KEY)
-      setTokens(null)
-      setUser(null)
-      setProducts([])
-      setBusy(false)
-    }
-  }
-
-  function openCreate() {
-    setForm({ product_name: '', description: '', price: '', quantity: '' })
-    setModal({ type: 'create' })
-    setError('')
-  }
-
-  function openEdit(product) {
-    setForm({
-      product_name: product.product_name,
-      description: product.description,
-      price: product.price,
-      quantity: String(product.quantity),
-    })
-    setModal({ type: 'edit', product })
-    setError('')
-  }
-
-  async function saveProduct(event) {
+  async function handleRegister(event) {
     event.preventDefault()
     setBusy(true)
-    setError('')
+    setMessage('')
     try {
-      const editing = modal.type === 'edit'
-      const payload = {
-        product_name: form.product_name,
-        description: form.description,
-        price: form.price,
-        quantity: Number(form.quantity),
-      }
-      await request(editing ? `/api/products/${modal.product.id}` : '/api/products', {
-        method: editing ? 'PUT' : 'POST',
-        token: tokens.access_token,
-        body: JSON.stringify(payload),
+      const payload = await apiRequest('/api/auth/register', {
+        method: 'POST',
+        body: registerForm,
       })
-      await loadProducts(tokens.access_token)
-      setModal(null)
-      setNotice(editing ? 'Product details saved.' : 'Product added to your inventory.')
-    } catch (err) {
-      setError(err.message)
+      setCredentials({ username: registerForm.username.trim(), password: '' })
+      setRegisterForm({ username: '', email: '', password: '' })
+      setAuthView('login')
+      announce(payload?.message || 'Account created successfully. You can now log in.')
+    } catch (error) {
+      showError(error)
     } finally {
       setBusy(false)
     }
   }
 
-  async function deleteProduct() {
+  async function handleLogout() {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
     setBusy(true)
-    setError('')
+    let logoutError = ''
     try {
-      await request(`/api/products/${modal.product.id}`, {
-        method: 'DELETE',
-        token: tokens.access_token,
+      if (refreshToken) {
+        const tokens = await refreshTokens(refreshToken)
+        await apiRequest('/api/auth/logout', {
+          method: 'POST',
+          body: { refresh_token: tokens.refresh_token },
+        })
+      }
+    } catch (error) {
+      logoutError = error instanceof TypeError
+        ? 'The API could not be reached to revoke the session.'
+        : error.message
+    } finally {
+      clearSession()
+      setUser(null)
+      setProducts([])
+      setActiveView('products')
+      setEditingProduct(null)
+      setAuthView('login')
+      setBusy(false)
+      announce(
+        logoutError
+          ? `Signed out on this device, but the server could not revoke the session: ${logoutError}`
+          : 'You have been logged out.',
+        logoutError ? 'error' : 'success',
+      )
+    }
+  }
+
+  async function handleAddProduct(event) {
+    event.preventDefault()
+    setBusy(true)
+    setMessage('')
+    try {
+      await apiRequest('/api/products', { method: 'POST', body: productForm })
+      setProductForm({ product_name: '', description: '', price: '', quantity: '' })
+      setActiveView('products')
+      await loadProducts('Product added successfully!')
+    } catch (error) {
+      showError(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function startEdit(product) {
+    setEditingProduct({
+      id: product.id,
+      product_name: product.product_name || '',
+      description: product.description || '',
+      price: String(product.price ?? ''),
+      quantity: String(product.quantity ?? ''),
+    })
+    setMessage('')
+  }
+
+  async function handleSaveProduct(event) {
+    event.preventDefault()
+    if (!editingProduct) return
+    setBusy(true)
+    setMessage('')
+    try {
+      await apiRequest(`/api/products/${editingProduct.id}`, {
+        method: 'PUT',
+        body: {
+          product_name: editingProduct.product_name,
+          description: editingProduct.description,
+          price: editingProduct.price,
+          quantity: editingProduct.quantity,
+        },
       })
-      await loadProducts(tokens.access_token)
-      setModal(null)
-      setNotice('Product removed from your inventory.')
-    } catch (err) {
-      setError(err.message)
+      setEditingProduct(null)
+      await loadProducts('Product updated successfully!')
+    } catch (error) {
+      showError(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDeleteProduct(id) {
+    if (!window.confirm('Are you sure you want to delete this product?')) return
+    setBusy(true)
+    setMessage('')
+    try {
+      await apiRequest(`/api/products/${id}`, { method: 'DELETE' })
+      await loadProducts('Product deleted successfully!')
+    } catch (error) {
+      showError(error)
     } finally {
       setBusy(false)
     }
   }
 
   if (loading) {
-    return <main className="boot-screen"><span className="loader" />Connecting to Stockroom</main>
+    return <main className="loading-screen"><span className="loader" />Connecting to Product Management</main>
   }
 
   if (!user) {
     return (
-      <main className="login-page">
-        <section className="login-card">
-          <div className="brand-mark">S</div>
-          <p className="eyebrow">STOCKROOM · INVENTORY</p>
-          <h1>Good to see you.</h1>
-          <p className="muted">Sign in to manage your product catalog.</p>
-          {error && <div className="alert error" role="alert">{error}</div>}
-          {notice && <div className="alert success" role="status">{notice}</div>}
-          <form className="login-form" onSubmit={signIn}>
-            <label htmlFor="username">Username</label>
-            <input
-              id="username"
-              autoComplete="username"
-              value={credentials.username}
-              onChange={(event) => setCredentials({ ...credentials, username: event.target.value })}
-              required
-            />
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={credentials.password}
-              onChange={(event) => setCredentials({ ...credentials, password: event.target.value })}
-              required
-            />
-            <button className="primary-button full-button" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign in'}
-              <span aria-hidden="true">↗</span>
+      <main className="auth-page">
+        <section className="auth-card">
+          <p className="eyebrow">PRODUCT SYSTEM</p>
+          <h1>{authView === 'login' ? 'Product Management' : 'Create an account'}</h1>
+          <p className="auth-subtitle">
+            {authView === 'login' ? 'Login to continue to your dashboard.' : 'Register to manage your product inventory.'}
+          </p>
+          {message && <div className={`status-message ${messageType}`} role={messageType === 'error' ? 'alert' : 'status'}>{message}</div>}
+
+          {authView === 'login' ? (
+            <form className="auth-form" onSubmit={handleLogin}>
+              <label htmlFor="login-username">Username or email</label>
+              <input id="login-username" autoComplete="username" value={credentials.username} onChange={(event) => setCredentials({ ...credentials, username: event.target.value })} required />
+              <label htmlFor="login-password">Password</label>
+              <input id="login-password" type="password" autoComplete="current-password" value={credentials.password} onChange={(event) => setCredentials({ ...credentials, password: event.target.value })} required />
+              <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Logging in…' : 'Login'}</button>
+            </form>
+          ) : (
+            <form className="auth-form" onSubmit={handleRegister}>
+              <label htmlFor="register-username">Username</label>
+              <input id="register-username" autoComplete="username" maxLength="100" value={registerForm.username} onChange={(event) => setRegisterForm({ ...registerForm, username: event.target.value })} required />
+              <label htmlFor="register-email">Email</label>
+              <input id="register-email" type="email" autoComplete="email" maxLength="255" value={registerForm.email} onChange={(event) => setRegisterForm({ ...registerForm, email: event.target.value })} required />
+              <label htmlFor="register-password">Password</label>
+              <input id="register-password" type="password" autoComplete="new-password" minLength="8" maxLength="72" value={registerForm.password} onChange={(event) => setRegisterForm({ ...registerForm, password: event.target.value })} required />
+              <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Creating account…' : 'Create an account'}</button>
+            </form>
+          )}
+
+          <p className="auth-switch">
+            {authView === 'login' ? 'New here?' : 'Already have an account?'}{' '}
+            <button type="button" onClick={() => { setAuthView(authView === 'login' ? 'register' : 'login'); setMessage('') }}>
+              {authView === 'login' ? 'Create an account' : 'Back to Login'}
             </button>
-          </form>
-          <p className="login-foot">Protected with LavaLust API authentication</p>
+          </p>
         </section>
-        <div className="login-side">
-          <div className="side-note"><span className="live-dot" /> YOUR INVENTORY, IN FOCUS</div>
-          <div>
-            <p className="side-kicker">PRODUCT MANAGEMENT</p>
-            <h2>Make room<br />for what’s next.</h2>
-            <p>One simple place to keep your catalog moving.</p>
-          </div>
-          <div className="side-index"><span>01</span><span className="index-line" /><span>STOCKROOM</span></div>
-        </div>
       </main>
     )
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="#inventory" aria-label="Stockroom home">
-          <span className="brand-mark small-mark">S</span><span>stockroom<span className="brand-period">.</span></span>
-        </a>
-        <div className="nav-label">WORKSPACE</div>
-        <a className="nav-link active" href="#inventory"><span className="nav-icon">▦</span>Inventory</a>
-        <div className="sidebar-bottom">
-          <div className="connection"><span className="live-dot" /><span><strong>Database connected</strong><small>Aiven MySQL · secure</small></span></div>
-          <div className="profile">
-            <div className="avatar">{(user.username || 'A').slice(0, 1).toUpperCase()}</div>
-            <div className="profile-name"><strong>{user.username}</strong><small>Administrator</small></div>
-            <button className="icon-button signout-icon" onClick={signOut} disabled={busy} aria-label="Sign out" title="Sign out">↗</button>
+    <main className="dashboard-page">
+      <section className="dashboard-card">
+        <header className="dashboard-header">
+          <div>
+            <p className="eyebrow">PRODUCT SYSTEM</p>
+            <h1>Product Management</h1>
+            <p className="welcome">Welcome, {user.username}</p>
           </div>
-        </div>
-      </aside>
-
-      <main className="main-content" id="inventory">
-        <header className="topbar">
-          <div className="breadcrumb">Workspace <span>/</span> <strong>Inventory</strong></div>
-          <div className="topbar-right"><span className="today">PRODUCT MANAGEMENT SYSTEM</span><span className="top-avatar">{(user.username || 'A').slice(0, 1).toUpperCase()}</span></div>
+          <button className="logout-button" type="button" onClick={handleLogout} disabled={busy}>{busy ? 'Logging out…' : 'Logout'}</button>
         </header>
 
-        <section className="page-content">
-          <div className="page-heading">
-            <div>
-              <p className="eyebrow">CATALOG OVERVIEW <span className="heading-rule" /></p>
-              <h1>Your inventory<span className="heading-period">.</span></h1>
-              <p className="muted">A clear view of your products and available stock.</p>
-            </div>
-            <button className="primary-button" onClick={openCreate}><span className="plus">+</span> Add product</button>
-          </div>
+        <nav className="product-tabs" aria-label="Product management">
+          <button type="button" className={activeView === 'products' ? 'active' : ''} onClick={() => { setActiveView('products'); setMessage('') }}>View Products</button>
+          <button type="button" className={activeView === 'add' ? 'active' : ''} onClick={() => { setActiveView('add'); setMessage('') }}>Add Product</button>
+        </nav>
 
-          {error && <div className="alert error" role="alert">{error}<button className="alert-close" onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
-          {notice && <div className="alert success" role="status">{notice}<button className="alert-close" onClick={() => setNotice('')} aria-label="Dismiss message">×</button></div>}
+        {message && <div className={`status-message ${messageType}`} role={messageType === 'error' ? 'alert' : 'status'}>{message}</div>}
 
-          <div className="metrics-grid">
-            <article className="metric-card"><div className="metric-top"><span>TOTAL PRODUCTS</span><span className="metric-glyph">▦</span></div><strong>{products.length.toString().padStart(2, '0')}</strong><small>items in your catalog</small></article>
-            <article className="metric-card"><div className="metric-top"><span>UNITS IN STOCK</span><span className="metric-glyph">↗</span></div><strong>{totalUnits.toLocaleString()}</strong><small>available across products</small></article>
-            <article className="metric-card value-card"><div className="metric-top"><span>INVENTORY VALUE</span><span className="metric-glyph">$</span></div><strong>${inventoryValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><small>based on current quantity</small></article>
-          </div>
-
-          <section className="inventory-panel">
-            <div className="panel-heading"><div><h2>All products</h2><p>Keep your catalog up to date.</p></div><span className="product-count">{products.length} {products.length === 1 ? 'PRODUCT' : 'PRODUCTS'}</span></div>
-            {products.length === 0 ? (
-              <div className="empty-state"><div className="empty-icon">▦</div><h3>Your inventory is ready.</h3><p>Add your first product to start tracking stock and value.</p><button className="secondary-button" onClick={openCreate}><span className="plus">+</span> Add your first product</button></div>
-            ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>PRODUCT</th><th>DESCRIPTION</th><th>PRICE</th><th>QUANTITY</th><th>CREATED</th><th><span className="sr-only">Actions</span></th></tr></thead>
-                  <tbody>{products.map((product) => (
-                    <tr key={product.id}>
-                      <td><div className="product-cell"><span className="product-initial">{product.product_name.slice(0, 1).toUpperCase()}</span><strong>{product.product_name}</strong></div></td>
-                      <td className="description-cell">{product.description || <span className="muted">No description</span>}</td>
-                      <td className="price-cell">${Number(product.price).toFixed(2)}</td>
-                      <td><span className={`stock-pill ${Number(product.quantity) === 0 ? 'out-of-stock' : ''}`}><span />{Number(product.quantity)} units</span></td>
-                      <td className="date-cell">{new Date(`${product.created_at.replace(' ', 'T')}Z`).toLocaleDateString()}</td>
-                      <td><div className="row-actions"><button onClick={() => openEdit(product)} className="text-action">Edit</button><button onClick={() => { setModal({ type: 'delete', product }); setError('') }} className="text-action danger-action">Delete</button></div></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
+        {activeView === 'products' ? (
+          <section className="content-section">
+            <div className="section-heading">
+              <div>
+                <p className="section-label">YOUR INVENTORY</p>
+                <h2>View Products</h2>
               </div>
-            )}
-          </section>
-          <footer className="page-footer"><span>STOCKROOM INVENTORY</span><span>CONNECTED TO LAVALUST API <i className="live-dot" /></span></footer>
-        </section>
-      </main>
-
-      {modal && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setModal(null) }}>
-          <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-            <div className="modal-header">
-              <div><p className="eyebrow">{modal.type === 'create' ? 'NEW CATALOG ITEM' : modal.type === 'edit' ? 'UPDATE CATALOG ITEM' : 'CONFIRM ACTION'}</p><h2 id="modal-title">{modal.type === 'create' ? 'Add a product' : modal.type === 'edit' ? 'Edit product' : 'Remove product?'}</h2></div>
-              <button className="icon-button modal-close" onClick={() => setModal(null)} disabled={busy} aria-label="Close dialog">×</button>
+              <button className="primary-button load-button" type="button" onClick={() => loadProducts('Products loaded successfully!')} disabled={productsLoading}>
+                {productsLoading ? 'Loading products…' : 'Load Products'}
+              </button>
             </div>
-            {modal.type === 'delete' ? (
-              <div className="delete-copy"><p>This will permanently remove <strong>{modal.product.product_name}</strong> from your inventory.</p><div className="modal-actions"><button className="secondary-button" onClick={() => setModal(null)} disabled={busy}>Keep product</button><button className="delete-button" onClick={deleteProduct} disabled={busy}>{busy ? 'Removing…' : 'Yes, remove product'}</button></div></div>
-            ) : (
-              <form className="product-form" onSubmit={saveProduct}>
-                <label htmlFor="product-name">Product name</label><input id="product-name" maxLength="100" value={form.product_name} onChange={(event) => setForm({ ...form, product_name: event.target.value })} required />
-                <label htmlFor="product-description">Description</label><textarea id="product-description" rows="3" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} required />
-                <div className="form-row"><div><label htmlFor="product-price">Price</label><div className="input-prefix"><span>$</span><input id="product-price" type="number" min="0" max="99999999.99" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} required /></div></div><div><label htmlFor="product-quantity">Quantity</label><input id="product-quantity" type="number" min="0" max="2147483647" step="1" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} required /></div></div>
-                <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setModal(null)} disabled={busy}>Cancel</button><button className="primary-button" disabled={busy}>{busy ? 'Saving…' : modal.type === 'create' ? 'Save product' : 'Save changes'}<span aria-hidden="true">↗</span></button></div>
-              </form>
-            )}
+
+            {productsLoading && products.length === 0 && <p className="empty-state">Loading products…</p>}
+            {!productsLoading && products.length === 0 && <p className="empty-state">No products yet. Add a product to get started.</p>}
+            <div className="products-grid">
+              {products.map((product) => (
+                <article className="product-card" key={product.id}>
+                  {editingProduct?.id === product.id ? (
+                    <form className="edit-form" onSubmit={handleSaveProduct}>
+                      <p className="section-label">PRODUCT #{product.id}</p>
+                      <h3>Update Product</h3>
+                      <label htmlFor={`edit-name-${product.id}`}>Product Name</label>
+                      <input id={`edit-name-${product.id}`} maxLength="100" value={editingProduct.product_name} onChange={(event) => setEditingProduct({ ...editingProduct, product_name: event.target.value })} required />
+                      <label htmlFor={`edit-description-${product.id}`}>Description</label>
+                      <textarea id={`edit-description-${product.id}`} rows="3" value={editingProduct.description} onChange={(event) => setEditingProduct({ ...editingProduct, description: event.target.value })} required />
+                      <div className="form-row">
+                        <div><label htmlFor={`edit-price-${product.id}`}>Price</label><input id={`edit-price-${product.id}`} type="number" min="0" max="99999999.99" step="0.01" value={editingProduct.price} onChange={(event) => setEditingProduct({ ...editingProduct, price: event.target.value })} required /></div>
+                        <div><label htmlFor={`edit-quantity-${product.id}`}>Quantity</label><input id={`edit-quantity-${product.id}`} type="number" min="0" max="2147483647" step="1" value={editingProduct.quantity} onChange={(event) => setEditingProduct({ ...editingProduct, quantity: event.target.value })} required /></div>
+                      </div>
+                      <div className="edit-actions">
+                        <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save Changes'}</button>
+                        <button className="secondary-button" type="button" onClick={() => setEditingProduct(null)} disabled={busy}>Cancel</button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <p className="product-number">PRODUCT #{product.id}</p>
+                      <h3>{product.product_name}</h3>
+                      <p className="product-description">{product.description || 'No description provided.'}</p>
+                      <div className="product-details">
+                        <strong>{new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(product.price))}</strong>
+                        <span>Quantity: {Number(product.quantity)}</span>
+                      </div>
+                      <div className="product-actions">
+                        <button className="secondary-button" type="button" onClick={() => startEdit(product)}>Edit</button>
+                        <button className="delete-button" type="button" onClick={() => handleDeleteProduct(product.id)} disabled={busy}>Delete</button>
+                      </div>
+                    </>
+                  )}
+                </article>
+              ))}
+            </div>
           </section>
-        </div>
-      )}
-    </div>
+        ) : (
+          <section className="content-section">
+            <div className="section-heading">
+              <div>
+                <p className="section-label">NEW ITEM</p>
+                <h2>Add Product</h2>
+              </div>
+            </div>
+            <form className="product-form" onSubmit={handleAddProduct}>
+              <label htmlFor="product-name">Product Name</label>
+              <input id="product-name" maxLength="100" value={productForm.product_name} onChange={(event) => setProductForm({ ...productForm, product_name: event.target.value })} required />
+              <label htmlFor="product-description">Description</label>
+              <textarea id="product-description" rows="3" value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} required />
+              <div className="form-row">
+                <div><label htmlFor="product-price">Price</label><input id="product-price" type="number" min="0" max="99999999.99" step="0.01" value={productForm.price} onChange={(event) => setProductForm({ ...productForm, price: event.target.value })} required /></div>
+                <div><label htmlFor="product-quantity">Quantity</label><input id="product-quantity" type="number" min="0" max="2147483647" step="1" value={productForm.quantity} onChange={(event) => setProductForm({ ...productForm, quantity: event.target.value })} required /></div>
+              </div>
+              <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Adding product…' : 'Add Product'}</button>
+            </form>
+          </section>
+        )}
+      </section>
+    </main>
   )
 }
 

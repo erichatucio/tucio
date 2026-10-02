@@ -68,6 +68,7 @@ $router->post('/api/products', 'ApiController::create_product');
 $router->put('/api/products/{id}', 'ApiController::update_product')->where_number('id');
 $router->patch('/api/products/{id}', 'ApiController::update_product')->where_number('id');
 $router->delete('/api/products/{id}', 'ApiController::delete_product')->where_number('id');
+$router->post('/api/auth/register', 'ApiController::register');
 
 $router->get('/create-migration/{migration_class}', 'MigrationController::create_migration');
 $router->get('/migrate', 'MigrationController::migrate');

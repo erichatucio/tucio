@@ -21,58 +21,122 @@ class ApiController extends Controller
 
         $username = $body['username'] ?? null;
         $password = $body['password'] ?? null;
-        $configured_username = getenv('ADMIN_USERNAME') ?: '';
-        $password_hash = getenv('ADMIN_PASSWORD_HASH') ?: '';
-
-        if ($configured_username === '' || $password_hash === '') {
-            $this->api->respond_error('Administrator credentials are not configured.', 503);
+        if (!is_string($username) || !is_string($password) || trim($username) === '') {
+            $this->api->respond_error('Username and password are required.', 422);
         }
-
-        if (!is_string($username)
-            || !is_string($password)
-            || !hash_equals($configured_username, $username)
-            || !password_verify($password, $password_hash)) {
-            $this->api->respond_error('The username or password is incorrect.', 401);
-        }
-
+        $username = trim($username);
         if (strlen($username) > 100) {
             $this->api->respond_error('Username must be 100 characters or fewer.', 422);
         }
 
-        $stmt = $this->db->raw(
-            'SELECT id, role, is_active FROM users WHERE username = ? OR email = ? LIMIT 1',
-            [$username, $username]
-        );
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $configured_username = getenv('ADMIN_USERNAME') ?: '';
+        $password_hash = getenv('ADMIN_PASSWORD_HASH') ?: '';
+        $valid_admin = $configured_username !== ''
+            && $password_hash !== ''
+            && hash_equals($configured_username, $username)
+            && password_verify($password, $password_hash);
 
-        if ($user && ($user['role'] !== 'admin' || (int) $user['is_active'] !== 1)) {
-            $this->api->respond_error('This account is not authorized to administer products.', 403);
-        }
-
-        if (!$user) {
-            $this->db->raw(
-                'INSERT INTO users (username, email, password, role, is_active) VALUES (?, ?, ?, ?, 1)',
-                [$username, $username, $password_hash, 'admin']
+        if ($valid_admin) {
+            $stmt = $this->db->raw(
+                'SELECT id, role, is_active FROM users WHERE username = ? OR email = ? LIMIT 1',
+                [$username, $username]
             );
-            $user_id = $this->db->last_id();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($user && ($user['role'] !== 'admin' || (int) $user['is_active'] !== 1)) {
+                $this->api->respond_error('This account is not authorized to administer products.', 403);
+            }
+
+            if (!$user) {
+                $this->db->raw(
+                    'INSERT INTO users (username, email, password, role, is_active) VALUES (?, ?, ?, ?, 1)',
+                    [$username, $username, $password_hash, 'admin']
+                );
+                $user_id = $this->db->last_id();
+            } else {
+                $user_id = (int) $user['id'];
+                $this->db->raw(
+                    'UPDATE users SET password = ? WHERE id = ?',
+                    [$password_hash, $user_id]
+                );
+            }
+
+            $role = 'admin';
+            $user_name = $username;
         } else {
-            $user_id = (int) $user['id'];
-            $this->db->raw(
-                'UPDATE users SET password = ? WHERE id = ?',
-                [$password_hash, $user_id]
+            $stmt = $this->db->raw(
+                'SELECT id, username, role, is_active, password FROM users WHERE username = ? OR email = ? LIMIT 1',
+                [$username, $username]
             );
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user || $user['role'] !== 'user' || (int) $user['is_active'] !== 1
+                || !password_verify($password, $user['password'])) {
+                $this->api->respond_error('The username or password is incorrect.', 401);
+            }
+
+            $user_id = (int) $user['id'];
+            $user_name = $user['username'];
+            $role = $user['role'];
         }
 
         $tokens = $this->api->issue_tokens([
             'id' => $user_id,
-            'role' => 'admin',
+            'role' => $role,
             'scopes' => ['read', 'write', 'delete'],
         ]);
 
         $this->api->respond([
-            'user' => ['id' => $user_id, 'username' => $username, 'role' => 'admin'],
+            'user' => ['id' => $user_id, 'username' => $user_name, 'role' => $role],
             'tokens' => $tokens,
         ]);
+    }
+
+    public function register()
+    {
+        $this->api->rate_limit('api-register-' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 10, 60);
+        $body = $this->request->json();
+        if (!is_array($body)) {
+            $this->api->respond_error('A JSON request body is required.', 400);
+        }
+
+        $username = $body['username'] ?? null;
+        $email = $body['email'] ?? null;
+        $password = $body['password'] ?? null;
+        if (!is_string($username) || !is_string($email) || !is_string($password)) {
+            $this->api->respond_error('Enter a username, a valid email, and a password of at least 8 characters.', 422);
+        }
+
+        $username = trim($username);
+        $email = trim($email);
+        if ($username === '' || strlen($username) > 100
+            || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 255
+            || strlen($password) < 8 || strlen($password) > 72) {
+            $this->api->respond_error('Enter a username, a valid email, and a password between 8 and 72 characters.', 422);
+        }
+
+        $admin_username = getenv('ADMIN_USERNAME') ?: '';
+        if ($admin_username !== ''
+            && (strcasecmp($username, $admin_username) === 0 || strcasecmp($email, $admin_username) === 0)) {
+            $this->api->respond_error('That username or email is reserved.', 409);
+        }
+
+        $existing = $this->db->raw(
+            'SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1',
+            [$username, $email]
+        )->fetch(PDO::FETCH_ASSOC);
+        if ($existing) {
+            $this->api->respond_error('That username or email is already registered.', 409);
+        }
+
+        $this->db->raw(
+            'INSERT INTO users (username, email, password, role, is_active) VALUES (?, ?, ?, ?, 1)',
+            [$username, $email, password_hash($password, PASSWORD_DEFAULT), 'user']
+        );
+
+        $this->api->respond([
+            'message' => 'Account created successfully. You can now log in.',
+        ], 201);
     }
 
     public function refresh()

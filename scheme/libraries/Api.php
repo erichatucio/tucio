@@ -534,7 +534,7 @@ class Api
         $role_scopes = [
             'admin'  => ['read', 'write', 'delete'],
             'editor' => ['read', 'write'],
-            'user'   => ['read'],
+            'user'   => ['read', 'write', 'delete'],
         ];
 
         return $role_scopes[$role] ?? ['read'];

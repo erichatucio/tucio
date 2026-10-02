@@ -36,4 +36,18 @@ services:
       - key: REFRESH_TOKEN_KEY
         generateValue: true
       - key: FRONTEND_ORIGIN
-        sync: false
+        value: https://tucio-frontend.onrender.com
+  - type: web
+    name: tucio-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://tucio.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

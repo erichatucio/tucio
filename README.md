@@ -43,7 +43,8 @@ All routes are under `/api`. Except login and refresh, requests require `Authori
 
 | Method | Route | Authentication | Result |
 | --- | --- | --- | --- |
-| `POST` | `/api/auth/login` | Public, rate-limited | Verify `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH`, provision admin row, return access and refresh tokens |
+| `POST` | `/api/auth/register` | Public, rate-limited | Validate registration details, create a user, return the account |
+| `POST` | `/api/auth/login` | Public, rate-limited | Verify an administrator or registered account, return access and refresh tokens |
 | `POST` | `/api/auth/refresh` | Refresh token in JSON body | Rotate refresh token and issue a new access token |
 | `POST` | `/api/auth/logout` | Access token and matching refresh token | Revoke refresh token |
 | `GET` | `/api/auth/me` | Bearer token | Return current account |
@@ -54,7 +55,7 @@ All routes are under `/api`. Except login and refresh, requests require `Authori
 | `PATCH` | `/api/products/{id}` | `write` scope | Update product fields |
 | `DELETE` | `/api/products/{id}` | `delete` scope | Delete product |
 
-Product values are validated server-side. CORS is restricted to `FRONTEND_ORIGIN`; set it to the exact HTTPS origin of the deployed React site. JSON API paths are excluded from cookie CSRF checks because state-changing requests use bearer tokens and never rely on cookies.
+Product values are validated server-side. CORS allows `http://localhost:5173` and the origin in `FRONTEND_ORIGIN`; set that variable to the exact HTTPS origin of the deployed React site. JSON API paths are excluded from cookie CSRF checks because state-changing requests use bearer tokens and never rely on cookies.
 
 ## Local development
 
@@ -90,7 +91,7 @@ Product values are validated server-side. CORS is restricted to `FRONTEND_ORIGIN
 
 ## Render deployment
 
-The existing LavaLust repository is the API project. Deploy it as a Docker Web Service using the root `Dockerfile` / `render.yaml`. The image listens on Render's port `10000`, applies pending migrations at startup, and serves the API.
+Deploy the LavaLust API as a Docker Web Service and the React client as a Render Static Site using the root `render.yaml`. The API image listens on Render's port `10000`, applies pending migrations at startup, and serves the API. The Static Site builds the `frontend` directory and publishes `dist`.
 
 Configure the required values in Render **Environment**:
 
@@ -105,9 +106,9 @@ Configure the required values in Render **Environment**:
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Aiven's connection details |
 | `DB_SSL_CA_CERT` | Full Aiven CA certificate PEM contents |
 | `JWT_SECRET`, `REFRESH_TOKEN_KEY` | Two independent random values, each at least 32 characters. The Render Blueprint generates both automatically; if deploying an existing service without syncing the Blueprint, generate and set them separately in the service's Environment settings. |
-| `FRONTEND_ORIGIN` | Exact HTTPS origin of the React Static Site, with no trailing slash |
+| `FRONTEND_ORIGIN` | `https://tucio-frontend.onrender.com` (exact HTTPS origin, no trailing slash) |
 
-Deploy the React client from its separate repository as a Render **Static Site** (its `render.yaml` is included). The Blueprint uses `npm ci && npm run build` and publishes `dist`. Set `VITE_API_BASE_URL` to the deployed LavaLust API origin, e.g. `https://your-api.onrender.com`. Add that site's final origin to the API service's `FRONTEND_ORIGIN`, then redeploy the API.
+The frontend uses `VITE_API_URL=https://tucio.onrender.com`. The root Render Blueprint configures it for the Static Site build and adds the SPA rewrite from `/*` to `/index.html`. The frontend's [README](frontend/README.md) has local setup and verification steps.
 
 Never place Aiven credentials, JWT secrets, password hashes, or the CA certificate in either Git repository or any `VITE_*` variable.
 
