@@ -22,18 +22,6 @@ class ProductController extends Controller
         ]);
     }
 
-    public function setup_database()
-    {
-        if (config_item('environment') !== 'development') {
-            http_response_code(404);
-            return;
-        }
-
-        require_once APP_DIR . 'migrations/003_create_products_table.php';
-        (new Create_products_table())->up();
-        http_response_code(204);
-    }
-
     public function create()
     {
         $this->render_form('Add product', 'products/create', [

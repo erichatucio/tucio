@@ -57,4 +57,3 @@ $router->get('/products/edit/{id}', 'ProductController::edit')->where_number('id
 $router->post('/products/edit/{id}', 'ProductController::update')->where_number('id');
 $router->get('/products/delete/{id}', 'ProductController::confirm_delete')->where_number('id');
 $router->post('/products/delete/{id}', 'ProductController::delete')->where_number('id');
-$router->post('/products/setup-database', 'ProductController::setup_database');
