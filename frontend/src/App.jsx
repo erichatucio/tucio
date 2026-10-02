@@ -126,6 +126,7 @@ function App() {
   const [editingProduct, setEditingProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [productsLoading, setProductsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')
@@ -258,6 +259,7 @@ function App() {
   async function handleLogout() {
     const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
     setBusy(true)
+    setLoggingOut(true)
     let logoutError = ''
     try {
       if (refreshToken) {
@@ -279,6 +281,7 @@ function App() {
       setEditingProduct(null)
       setAuthView('login')
       setBusy(false)
+      setLoggingOut(false)
       announce(
         logoutError
           ? `Signed out on this device, but the server could not revoke the session: ${logoutError}`
@@ -408,7 +411,7 @@ function App() {
             <h1>Product Management</h1>
             <p className="welcome">Welcome, {user.username}</p>
           </div>
-          <button className="logout-button" type="button" onClick={handleLogout} disabled={busy}>{busy ? 'Logging out…' : 'Logout'}</button>
+          <button className="logout-button" type="button" onClick={handleLogout} disabled={busy}>{loggingOut ? 'Logging out…' : 'Logout'}</button>
         </header>
 
         <nav className="product-tabs" aria-label="Product management">
