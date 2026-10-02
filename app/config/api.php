@@ -147,6 +147,7 @@ $config['users_table'] = 'users';
 */
 $frontend_origins = explode(',', getenv('FRONTEND_ORIGIN') ?: '');
 $frontend_origins[] = 'http://localhost:5173';
+$frontend_origins[] = 'http://127.0.0.1:5173';
 $config['allow_origin'] = array_values(array_unique(array_filter(array_map(
     'trim',
     $frontend_origins

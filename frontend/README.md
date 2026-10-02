@@ -7,18 +7,18 @@ React and Vite client for the LavaLust product API. It includes account registra
 Install dependencies and provide the API base URL:
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.example .env.local
 npm install
 npm run dev
 ```
 
-Set `VITE_API_URL` in `.env` to the API origin, without a trailing slash or `/api` suffix. For the deployed API:
+Set `VITE_API_URL` in `.env.local` to the API origin, without a trailing slash or `/api` suffix. The example file points to the deployed API:
 
 ```dotenv
 VITE_API_URL=https://tucio.onrender.com
 ```
 
-The Vite development server runs at `http://localhost:5173`. The API must allow that origin in CORS for local development.
+The Vite development server runs at `http://localhost:5173` (or `http://127.0.0.1:5173`). Both origins are allowed by the API for local development.
 
 ## Build
 
@@ -32,7 +32,7 @@ npm run build
 - Frontend: `https://tucio-frontend.onrender.com`
 - API: `https://tucio.onrender.com`
 
-The Render Static Site builds this directory with `npm install && npm run build`, publishes `dist`, and rewrites application routes to `/index.html`. Configure `VITE_API_URL` on the Static Site before building. The API's `FRONTEND_ORIGIN` must contain the frontend's exact HTTPS origin; `http://localhost:5173` is also allowed by the API for local testing.
+The Render Static Site builds this directory with `npm install && npm run build`, publishes `dist`, and rewrites application routes to `/index.html`. Configure `VITE_API_URL` on the Static Site before building. The API's `FRONTEND_ORIGIN` must contain the frontend's exact HTTPS origin; `http://localhost:5173` and `http://127.0.0.1:5173` are also allowed by the API for local testing.
 
 ## Verification checklist
 
