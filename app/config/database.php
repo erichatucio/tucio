@@ -58,15 +58,15 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 */
 
 $database['main'] = array(
-    'driver'	=> getenv('DB_DRIVER') ?: '',
-    'hostname'	=> getenv('DB_HOST') ?: '',
-    'port'		=> getenv('DB_PORT') ?: '',
-    'username'	=> getenv('DB_USER') ?: '',
+    'driver'	=> getenv('DB_DRIVER') ?: 'mysql',
+    'hostname'	=> getenv('DB_HOST') ?: 'tucio-erichatucio-2b3d.l.aivencloud.com',
+    'port'		=> getenv('DB_PORT') ?: '28459',
+    'username'	=> getenv('DB_USER') ?: 'avnadmin',
     'password'	=> getenv('DB_PASSWORD') ?: '',
-    'database'	=> getenv('DB_NAME') ?: '',
-    'charset'	=> getenv('DB_CHARSET') ?: '',
+    'database'	=> getenv('DB_NAME') ?: 'products',
+    'charset'	=> getenv('DB_CHARSET') ?: 'utf8mb4',
     'dbprefix'	=> getenv('DB_PREFIX') ?: '',
-    'ssl_ca'    => getenv('DB_SSL_CA') ?: '',
+    'ssl_ca'    => getenv('DB_SSL_CA') ?: dirname(__DIR__, 2) . '/certs/ca.pem',
     'ssl_ca_cert' => getenv('DB_SSL_CA_CERT') ?: '',
     // Optional for SQLite
     'path'      => ''
