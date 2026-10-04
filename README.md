@@ -2,6 +2,8 @@
 
 Stockroom is a React product-management client backed by a LavaLust JSON API and Aiven MySQL. Product operations use parameterized database queries in the API only; the browser never connects to MySQL. The API uses LavaLust's `Api` library for JSON responses, JWT access/refresh tokens, rate limiting, and bearer-token validation.
 
+The server-rendered product manager is available at `/login` and `/products`. It is a separate interface from the React client at `/`; the React frontend's design and source are unchanged.
+
 ## Stack
 
 - LavaLust 4.6 / PHP 8.3 with PDO MySQL

@@ -1,7 +1,7 @@
-<section class="panel form-panel" style="margin:7vh auto 0">
-    <p style="margin:0 0 8px;color:#176b55;font-weight:700">PRODUCT MANAGEMENT</p>
+<section class="panel form-panel login-panel">
+    <p class="eyebrow">PRODUCT MANAGEMENT</p>
     <h1>Welcome back</h1>
-    <p style="margin:8px 0 24px">Sign in to manage your product inventory.</p>
+    <p class="login-subtitle">Sign in to manage your product inventory.</p>
     <?php if (!empty($error)): ?>
         <div class="notice error" role="alert"><?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
     <?php endif; ?>
@@ -15,6 +15,6 @@
             <label for="password">Password</label>
             <input id="password" name="password" type="password" autocomplete="current-password" required>
         </div>
-        <button class="button" type="submit">Sign in</button>
+        <button class="button" type="submit">Sign in to Stockroom</button>
     </form>
 </section>
