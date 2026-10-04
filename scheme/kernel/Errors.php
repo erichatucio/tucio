@@ -136,11 +136,31 @@ class Errors
 	 */
 	public function show_database_error($message, $sql = '', $bindings = [], $exception = null, $template = 'error_db')
 	{
-		http_response_code(500);
-		
 		if (config_item('environment') !== 'development') {
+			$sql_state = $exception instanceof PDOException ? (string) $exception->getCode() : 'unknown';
+			$driver_code = $exception instanceof PDOException
+				&& isset($exception->errorInfo[1])
+				? (string) $exception->errorInfo[1]
+				: 'unknown';
+			error_log(sprintf(
+				'[database] Request failed (SQLSTATE %s, driver code %s).',
+				$sql_state,
+				$driver_code
+			));
+
+			if (str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/api/')) {
+				http_response_code(503);
+				header('Content-Type: application/json; charset=utf-8');
+				header('Retry-After: 30');
+				echo json_encode(['error' => ['message' => 'Database service is temporarily unavailable.']]);
+				exit();
+			}
+
+			http_response_code(500);
 			exit();
 		}
+
+		http_response_code(500);
 
 		$template_path = config_item('error_view_path');
 		if (empty($template_path)) {
