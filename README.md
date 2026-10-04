@@ -57,7 +57,7 @@ All routes are under `/api`. Except login and refresh, requests require `Authori
 | `PATCH` | `/api/products/{id}` | `write` scope | Update product fields |
 | `DELETE` | `/api/products/{id}` | `delete` scope | Delete product |
 
-Product values are validated server-side. CORS allows `http://localhost:5173`, `http://127.0.0.1:5173`, and the origin in `FRONTEND_ORIGIN`; set that variable to the exact HTTPS origin of the deployed React site. JSON API paths are excluded from cookie CSRF checks because state-changing requests use bearer tokens and never rely on cookies.
+Product values are validated server-side. CORS allows `http://localhost:5173`, `http://127.0.0.1:5173`, `https://api-tester.marasigan.dev`, and the origin in `FRONTEND_ORIGIN`; set that variable to the exact HTTPS origin of the deployed React site. JSON API paths are excluded from cookie CSRF checks because state-changing requests use bearer tokens and never rely on cookies.
 
 ## Local development
 
