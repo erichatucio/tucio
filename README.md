@@ -43,6 +43,8 @@ php lava migration refresh
 
 All routes are under `/api`. Except login and refresh, requests require `Authorization: Bearer <access_token>`.
 
+The API login endpoint accepts `POST` requests with JSON. Opening `/api/auth/login` directly in a browser redirects to the interactive `/login` page.
+
 | Method | Route | Authentication | Result |
 | --- | --- | --- | --- |
 | `POST` | `/api/auth/register` | Public, rate-limited | Validate registration details, create a user, return the account |

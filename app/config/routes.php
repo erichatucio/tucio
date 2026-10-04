@@ -58,6 +58,7 @@ $router->post('/products/edit/{id}', 'ProductController::update')->where_number(
 $router->get('/products/delete/{id}', 'ProductController::confirm_delete')->where_number('id');
 $router->post('/products/delete/{id}', 'ProductController::delete')->where_number('id');
 
+$router->get('/api/auth/login', 'Auth::api_login_landing');
 $router->post('/api/auth/login', 'ApiController::login');
 $router->post('/api/auth/refresh', 'ApiController::refresh');
 $router->post('/api/auth/logout', 'ApiController::logout');

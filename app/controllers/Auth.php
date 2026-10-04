@@ -17,6 +17,11 @@ class Auth extends Controller
         $this->render_login();
     }
 
+    public function api_login_landing()
+    {
+        redirect(site_url('login'));
+    }
+
     public function authenticate()
     {
         $username = $this->request->post('username');
