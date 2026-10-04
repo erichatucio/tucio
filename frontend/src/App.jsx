@@ -5,6 +5,7 @@ const API_URL = (import.meta.env.VITE_API_URL || window.location.origin).replace
 const ACCESS_TOKEN_KEY = 'stockroom-access-token'
 const REFRESH_TOKEN_KEY = 'stockroom-refresh-token'
 const USER_KEY = 'stockroom-user'
+const IS_PRODUCT_MANAGER = import.meta.env.VITE_PRODUCT_MANAGER_REDESIGN === 'true'
 let pendingTokenRefresh = null
 
 function clearSession() {
@@ -356,15 +357,33 @@ function App() {
     }
   }
 
+  const inventorySummary = products.reduce((summary, product) => {
+    const quantity = Number(product.quantity) || 0
+    summary.units += quantity
+    summary.value += (Number(product.price) || 0) * quantity
+    return summary
+  }, { units: 0, value: 0 })
+
   if (loading) {
-    return <main className="loading-screen"><span className="loader" />Connecting to Product Management</main>
+    return <main className={`loading-screen${IS_PRODUCT_MANAGER ? ' manager-redesign' : ''}`}><span className="loader" />Connecting to Product Management</main>
   }
 
   if (!user) {
     return (
-      <main className="auth-page">
+      <main className={`auth-page${IS_PRODUCT_MANAGER ? ' manager-redesign' : ''}`}>
+        {IS_PRODUCT_MANAGER && (
+          <aside className="manager-auth-story">
+            <div className="manager-brand"><span className="manager-brand-mark">S</span> STOCKROOM</div>
+            <div>
+              <p className="manager-overline">INVENTORY, IN FOCUS</p>
+              <h2>A better view of everything you stock.</h2>
+              <p>One workspace to keep your catalog, pricing, and stock moving in the right direction.</p>
+            </div>
+            <span className="manager-story-foot">PRODUCT OPERATIONS · EST. 2026</span>
+          </aside>
+        )}
         <section className="auth-card">
-          <p className="eyebrow">PRODUCT SYSTEM</p>
+          <p className="eyebrow">{IS_PRODUCT_MANAGER ? 'STOCKROOM WORKSPACE' : 'PRODUCT SYSTEM'}</p>
           <h1>{authView === 'login' ? 'Product Management' : 'Create an account'}</h1>
           <p className="auth-subtitle">
             {authView === 'login' ? 'Login to continue to your dashboard.' : 'Register to manage your product inventory.'}
@@ -403,18 +422,50 @@ function App() {
   }
 
   return (
-    <main className="dashboard-page">
+    <main className={`dashboard-page${IS_PRODUCT_MANAGER ? ' manager-redesign' : ''}`}>
+      {IS_PRODUCT_MANAGER && (
+        <aside className="manager-sidebar">
+          <a className="manager-brand" href="/" aria-label="Stockroom home"><span className="manager-brand-mark">S</span> STOCKROOM</a>
+          <p className="manager-nav-label">WORKSPACE</p>
+          <nav className="manager-nav" aria-label="Dashboard navigation">
+            <button type="button" className={activeView === 'products' ? 'active' : ''} onClick={() => { setActiveView('products'); setEditingProduct(null); setMessage('') }}>
+              <span aria-hidden="true">▦</span> Inventory
+            </button>
+            <button type="button" className={activeView === 'add' ? 'active' : ''} onClick={() => { setActiveView('add'); setEditingProduct(null); setMessage('') }}>
+              <span aria-hidden="true">＋</span> Add product
+            </button>
+          </nav>
+          <div className="manager-sidebar-bottom">
+            <div className="manager-sidebar-user"><span className="manager-avatar">{user.username?.charAt(0)?.toUpperCase() || 'U'}</span><span><strong>{user.username}</strong><small>Workspace account</small></span></div>
+            <button className="manager-sidebar-logout" type="button" onClick={handleLogout} disabled={busy}>{loggingOut ? 'Logging out…' : 'Sign out'}</button>
+          </div>
+        </aside>
+      )}
       <section className="dashboard-card">
+        {IS_PRODUCT_MANAGER && (
+          <div className="manager-toolbar">
+            <span>Workspace <span aria-hidden="true">/</span> {activeView === 'products' ? 'Inventory' : 'New product'}</span>
+            <span className="manager-live"><i aria-hidden="true" /> Inventory is up to date</span>
+          </div>
+        )}
         <header className="dashboard-header">
           <div>
-            <p className="eyebrow">PRODUCT SYSTEM</p>
-            <h1>Product Management</h1>
+            <p className="eyebrow">{IS_PRODUCT_MANAGER ? 'YOUR BUSINESS AT A GLANCE' : 'PRODUCT SYSTEM'}</p>
+            <h1>{IS_PRODUCT_MANAGER ? (activeView === 'products' ? 'Inventory' : 'Add a product') : 'Product Management'}</h1>
             <p className="welcome">Welcome, {user.username}</p>
           </div>
-          <button className="logout-button" type="button" onClick={handleLogout} disabled={busy}>{loggingOut ? 'Logging out…' : 'Logout'}</button>
+          {!IS_PRODUCT_MANAGER && <button className="logout-button" type="button" onClick={handleLogout} disabled={busy}>{loggingOut ? 'Logging out…' : 'Logout'}</button>}
         </header>
 
-        <nav className="product-tabs" aria-label="Product management">
+        {IS_PRODUCT_MANAGER && activeView === 'products' && (
+          <section className="manager-metrics" aria-label="Inventory summary">
+            <article><span className="manager-metric-icon">▦</span><span><small>CATALOG ITEMS</small><strong>{products.length.toLocaleString()}</strong></span></article>
+            <article><span className="manager-metric-icon">↗</span><span><small>UNITS IN STOCK</small><strong>{inventorySummary.units.toLocaleString()}</strong></span></article>
+            <article><span className="manager-metric-icon">$</span><span><small>INVENTORY VALUE</small><strong>{new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(inventorySummary.value)}</strong></span></article>
+          </section>
+        )}
+
+        <nav className={`product-tabs${IS_PRODUCT_MANAGER ? ' manager-product-tabs' : ''}`} aria-label="Product management">
           <button type="button" className={activeView === 'products' ? 'active' : ''} onClick={() => { setActiveView('products'); setMessage('') }}>View Products</button>
           <button type="button" className={activeView === 'add' ? 'active' : ''} onClick={() => { setActiveView('add'); setMessage('') }}>Add Product</button>
         </nav>

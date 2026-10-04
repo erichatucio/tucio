@@ -114,6 +114,8 @@ Configure the required values in Render **Environment**:
 
 The combined Docker deployment uses the current page origin as the API URL, so the UI and API work together at `https://tucio.onrender.com/`. For local Vite development and the standalone Static Site, set `VITE_API_URL` to the API origin. The frontend's [README](frontend/README.md) has local setup and verification steps.
 
+The Docker build enables `VITE_PRODUCT_MANAGER_REDESIGN` for the manager UI at `https://tucio.onrender.com/`. Leave it unset for the standalone `tucio-product-frontend` static site; that site retains its existing design.
+
 Never place Aiven credentials, JWT secrets, password hashes, or the CA certificate in either Git repository or any `VITE_*` variable.
 
 ## Submission checks

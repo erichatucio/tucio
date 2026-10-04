@@ -4,6 +4,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
+ENV VITE_PRODUCT_MANAGER_REDESIGN=true
 RUN npm run build
 
 FROM php:8.3-apache
