@@ -23,7 +23,15 @@ function storeTokens(tokens) {
 }
 
 function responseError(payload, status) {
-  const error = new Error(payload?.error || payload?.message || `Request failed with status ${status}.`)
+  const payloadError = payload?.error
+  const message = typeof payloadError === 'string'
+    ? payloadError
+    : typeof payloadError?.message === 'string'
+      ? payloadError.message
+      : typeof payload?.message === 'string'
+        ? payload.message
+        : `Request failed with status ${status}.`
+  const error = new Error(message)
   error.status = status
   return error
 }

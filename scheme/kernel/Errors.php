@@ -152,7 +152,7 @@ class Errors
 				http_response_code(503);
 				header('Content-Type: application/json; charset=utf-8');
 				header('Retry-After: 30');
-				echo json_encode(['error' => ['message' => 'Database service is temporarily unavailable.']]);
+				echo json_encode(['error' => 'Database service is temporarily unavailable.']);
 				exit();
 			}
 
